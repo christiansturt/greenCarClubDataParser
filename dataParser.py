@@ -40,41 +40,57 @@ def parse_json_to_excel(input_file, output_excel=None,plot=True):
                 merged = {**base, **echookDict}
                 echook_data.append(merged)
             if "gps" in entry:
-                merged = {**base, **entry["gps"]}
+                gpsDict=entry["gps"]
+                try:
+                   gpsDict['gpsSeqNo'] = gpsDict.pop('SeqNo') #Seq No is present in the top, so have an gpsSeqNo
+                except:
+                    pass
+
+                #remove any bad data, there was one in the file
+                try:
+                    if (gpsDict["Lng"] > 100) or (gpsDict["Lng"] < -100):
+                        gpsDict["Lng"] = 0
+                except:
+                    pass
+
+                merged = {**base, **gpsDict}
                 gps_data.append(merged)
 
     # Convert to DataFrames
     df_echook = pd.DataFrame(echook_data)
     df_gps = pd.DataFrame(gps_data)
 
-    #import pdb
-    #pdb.set_trace()
+
     if output_excel:
         # Save to Excel with two sheets
-        with pd.ExcelWriter(output_excel, engine="openpyxl") as writer:
-            df_echook.to_excel(writer, sheet_name="echook", index=False)
-            df_gps.to_excel(writer, sheet_name="gps", index=False)
+        #writer = pd.ExcelWriter(output_excel, engine="openpyxl") 
+        writer = pd.ExcelWriter(output_excel, engine="xlsxwriter") 
+        
+        df_echook.to_excel(writer, sheet_name="echook", index=False)
+        df_gps.to_excel(writer, sheet_name="gps", index=False)
+
+        workbook = writer.book
+        gpsWorksheet = writer.sheets["gps"]
+        echookWorksheet = writer.sheets["echook"]
+
+        # Get the dimensions of the dataframe.
+        (maxRowGps, maxColGps) = df_gps.shape 
+        (maxRowEchook, maxColEchook) = df_echook.shape 
+
+        # Make the columns wider for clarity.
+        gpsWorksheet.set_column(0, maxColGps - 1, 12)
+        echookWorksheet.set_column(0, maxColEchook - 1, 12)
+
+        # Set the autofilter.
+        gpsWorksheet.autofilter(0, 0,maxRowGps, maxColGps - 1)
+        echookWorksheet.autofilter(0, 0,maxRowEchook, maxColEchook - 1)
+
+        writer.close()
+  
 
         print(f"Excel file saved as: {output_excel}")
 
-    oldplot=False
-    if oldplot:
-        print("Plotting to a map")
-        
-        fig = px.scatter_geo(df_gps,lat='Lat',lon='Lng', hover_name="Timestamp")
-        #fig = px.scatter_geo(df_gps,lat='Lat',lon='Lng', hover_name="Timestamp",color='Speed')
-        if 1:
-            fig.update_layout(title = 'World map', title_x=0.5)
-            lat_foc = df_gps.mean()["Lat"]
-            lon_foc = df_gps.mean()["Lng"]
-            lat_foc = 51.117675
-            lon_foc = -0.542965
-            fig.update_layout(
-                geo = dict(
-                    projection_scale=10, #this is kind of like zoom
-                    center=dict(lat=lat_foc, lon=lon_foc), # this will center on the point
-                ))
-        fig.show()
+ 
     if plot:
         # Convert to GeoDataFrame
         gdf = gpd.GeoDataFrame(
@@ -101,28 +117,18 @@ def parse_json_to_excel(input_file, output_excel=None,plot=True):
         ax.set_xlim(minx - offset, maxx + offset)
         ax.set_ylim(miny - offset, maxy + offset)
 
-        # fig=px.scatter_map(
-        #     df_gps,
-        #     lat="Lat",
-        #     lon="Lng",
-        #     #color="Speed"
-        #     #color_discrete_map={"Eric": "turquoise", "Nico": "green", "Sanne": "brown"},
-        # ).update_layout( mapbox={ "style": "carto-positron", "zoom": 1, }, margin={"l": 52, "r": 50, "t": 1, "r": 52}, )
 
-        # fig.show()
-        plt.title('Latitude and Longitude Plot using GeoPandas')
+        plt.title('Latitude and Longitude Plot')
         plt.xlabel('Longitude')
         plt.ylabel('Latitude')
         plt.show()
 
 
 if __name__ == "__main__":
-    input_file = "data_small.json"
-    output_excel = "output_data.xlsx"
     if(len(sys.argv)<3):
         print("Too Few arguments, use %s input.json output.xlsx"%sys.argv[0])
         exit(0)
 
     #parse_json_to_excel(sys.argv[1], sys.argv[2])
-    #parse_json_to_excel(sys.argv[1],sys.argv[2],plot=False)
-    parse_json_to_excel(sys.argv[1],None,True)
+    parse_json_to_excel(sys.argv[1],sys.argv[2],plot=False)
+    #parse_json_to_excel(sys.argv[1],None,True)
