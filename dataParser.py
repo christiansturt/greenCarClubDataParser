@@ -1,3 +1,7 @@
+# File to pass the green car club data from Matthew
+# Author: Christian Sturt
+# Date: 20/9/2025
+
 import json
 import pandas as pd
 #import plotly.express as px
@@ -120,5 +124,5 @@ if __name__ == "__main__":
         exit(0)
 
     #parse_json_to_excel(sys.argv[1], sys.argv[2])
-    parse_json_to_excel(sys.argv[1],sys.argv[2],plot=False)
+    #parse_json_to_excel(sys.argv[1],sys.argv[2],plot=False)
     parse_json_to_excel(sys.argv[1],None,True)
